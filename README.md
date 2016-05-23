@@ -1,7 +1,7 @@
 shell-config
 ============
 
-koturn's configuration file for zsh.
+koturn's configuration file for bash and zsh.
 
 
 ## LICENSE
