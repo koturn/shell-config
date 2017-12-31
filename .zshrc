@@ -1,13 +1,4 @@
-# set language
-export LANG=ja_JP.UTF-8
-case ${UID} in
-  0)
-    LANG=C
-    ;;
-esac
-
-export VISUAL=vim
-export EDITOR=vim
+[ -f ~/.common_rc.sh ] && source ~/.common_rc.sh || :
 
 # Set color of ls (change $LS_COLORS)
 eval "$(dircolors -b)"
@@ -54,7 +45,7 @@ SPROMPT="%B%F{red} correct: %R -> %r [n,y,a,e]? %f%b"
 case "${TERM}" in
   kterm* | xterm*)
     precmd() {
-      echo -ne "\033]0;${USER}@${HOST}\007"
+      # echo -ne "\033]0;${USER}@${HOST}\007"
     }
     ;;
 esac
@@ -117,153 +108,9 @@ setopt notify        # ジョブが終了したらただちに知らせる
 setopt rm_star_wait  # rm * を実行する前に確認
 
 
-###############################################################################
-# Aliases                                                                     #
-###############################################################################
-alias gcc='gcc -std=gnu11 -Wall -Wextra'
-alias g++='g++ -std=gnu++14 -Wall -Wextra'
-alias grep='grep --color=auto'
-alias ls='ls --color=auto'
-alias la='ls -A'
-alias lf='ls -F'
-alias ll='ls -l'
-alias l='ls --color=auto'
-alias vsh='vi -c VimShell'
-alias gvsh='gvim -c VimShell'
-alias cls='echo -ne "\ec\e[3J"'
+bindkey "^[OH" beginning-of-line
+bindkey "^[OF" end-of-line
+bindkey "^[[3~" delete-char
 
-
-case ${OSTYPE} in
-  cygwin)
-    alias clear='echo -ne "\ec\e[3J"'
-    ;;
-esac
-
-# ホストごとの設定があれば読み込む
-# [ -f ~/.zshrc.mine ] && source ~/.zshrc.mine
-
-
-###############################################################################
-# Functions                                                                   #
-###############################################################################
-man() {
-  LESS_TERMCAP_mb=$'\e[1;31m' \
-    LESS_TERMCAP_md=$'\e[1;32m' \
-    LESS_TERMCAP_me=$'\e[0m' \
-    LESS_TERMCAP_se=$'\e[0m' \
-    LESS_TERMCAP_so=$'\e[1;44;33m' \
-    LESS_TERMCAP_ue=$'\e[0m' \
-    LESS_TERMCAP_us=$'\e[4;36m' \
-    command man "$@"
-}
-
-# http://rcmdnk.github.io/blog/2015/07/22/computer-bash-zsh/
-explain() {
-  if [ "$#" -eq 0 ]; then
-    while read  -p 'Command: ' cmd; do
-      curl -Gs "https://www.mankier.com/api/explain/?cols="$(tput cols) --data-urlencode "q=$cmd"
-    done
-    echo 'Bye!'
-  elif [ "$#" -eq 1 ]; then
-    curl -Gs "https://www.mankier.com/api/explain/?cols="$(tput cols) --data-urlencode "q=$1"
-  else
-    echo 'Usage'
-    echo 'explain                  interactive mode.'
-    echo 'explain 'cmd -o | ...'   one quoted command to explain it.'
-  fi
-}
-
-mkdircd() {
-  mkdir -p "$@" && eval cd "\"\$$#\"";
-}
-
-git-init-commit() {
-  git init . && git add . && git commit -m 'Initial commit'
-}
-
-github-first-push() {
-  if [ $# -lt 1 ]; then
-    echo 'Invalid arguments' 1>&2
-    echo '[USAGE]'
-    echo "  $0 REMOTE-REPOSITORY-NAME"
-    return 1
-  fi
-  git remote add origin "https://github.com/koturn/$1.git" && \
-  git push -u origin master
-}
-
-github-clone() {
-  if [ $# -lt 1 ]; then
-    echo 'Invalid arguments' 1>&2
-    echo '[USAGE]'
-    echo "  $0 USER-NAME REPOSITORY-NAME"
-    return 1
-  fi
-  git clone "https://github.com/$1/$2.git"
-}
-
-git-commit-chmod() {
-  find . -type d -name '.git' -prune -o -type d -exec chmod 755 {} \;
-  find . -type d -name '.git' -prune -o -type f -exec chmod 644 {} \;
-  # chmod 755 **/*.{lua,pl,py,rb,sh}
-}
-
-
-easy-compress() {
-  if [ $# -lt 1 ]; then
-    echo 'Invalid arguments' 1>&2
-    echo '[USAGE]'
-    echo "  $0 SRC [Compressed file] {[Destination directory]}"
-    return 1
-  fi
-
-  local dir=${2-/tmp}
-  case $1 in
-    *.tar.gz | *.tar.Z)
-      tar zxvf "$1" -C "$dir"
-      ;;
-    *.tar.bz2)
-      tar jxvf "$1" -C "$dir"
-      ;;
-    *.tar.xz)
-      tar Jxvf "$1" -C "$dir"
-      ;;
-    *.zip)
-      unzip "$1" -d "$dir"
-      ;;
-    *)
-      echo "Cannot extract files from $1 - unrecognized compression format" 1>&2
-      return 1
-      ;;
-  esac
-}
-
-
-easy-extract() {
-  if [ $# -lt 1 ]; then
-    echo 'Invalid arguments' 1>&2
-    echo '[USAGE]'
-    echo "  $0 SRC [Compressed file] {[Destination directory]}"
-    return 1
-  fi
-
-  local dir=${2-/tmp}
-  case $1 in
-    *.tar.gz | *.tar.Z)
-      tar zxvf "$1" -C "$dir"
-      ;;
-    *.tar.bz2)
-      tar jxvf "$1" -C "$dir"
-      ;;
-    *.tar.xz)
-      tar Jxvf "$1" -C "$dir"
-      ;;
-    *.zip)
-      unzip "$1" -d "$dir"
-      ;;
-    *)
-      echo "Cannot extract files from $1 - unrecognized compression format" 1>&2
-      return 1
-      ;;
-  esac
-}
+[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh || :
+[ -f ~/.local.zshrc ] && source ~/.local.zshrc || :
