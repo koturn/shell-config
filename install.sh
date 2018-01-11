@@ -80,18 +80,18 @@ case "$mode" in
           read line
           if [ "$line" == 'y' ]; then
             echo >> $dst_dir/$target
-            cat $target >> $dst_dir/$target
+            cat $script_dir/$target >> $dst_dir/$target
             break
           fi
         done
       else
-        echo $target >> $dst_dir/$target
+        cat $script_dir/$target >> $dst_dir/$target
       fi
     done
     ;;
   copy)
     for target in ${targets[@]}; do
-      cp -i $target $dst_dir/$target
+      cp -i $script_dir/$target $dst_dir/$target
     done
     ;;
   symbolic)
