@@ -22,6 +22,8 @@ show_usage() {
   echo '    Copy or replace config file'
   echo '  -d, --destination-dir'
   echo '    Specify destnation dir'
+  echo '  -f, --force'
+  echo '    Force to append, replace or create symolic link'
   echo '  -s, --symbolic'
   echo '    Create symbolic link instead of copying'
   echo '  -h, --help'
@@ -30,7 +32,7 @@ show_usage() {
 
 
 unset GETOPT_COMPATIBLE
-OPT=`getopt -o acd:sh -l apped,copy,destination-dir:,symbolic,help -- "$@"`
+OPT=`getopt -o acd:fsh -l apped,copy,destination-dir:,force,symbolic,help -- "$@"`
 if [ $? -ne 0 ]; then
   echo >&2 'Invalid argument'
   show_usage >&2
@@ -40,6 +42,7 @@ eval set -- "$OPT"
 
 dst_dir=~
 mode=copy
+is_forced=0
 
 while [ $# -gt 0 ]; do
   case $1 in
@@ -48,6 +51,9 @@ while [ $# -gt 0 ]; do
       ;;
     -c | --copy)
       mode=copy
+      ;;
+    -f | --force)
+      is_forced=1
       ;;
     -d | --destination-dir)
       dst_dir="$2"
@@ -73,7 +79,7 @@ done
 case "$mode" in
   append)
     for target in ${targets[@]}; do
-      if [ -f $dst_dir/$target ]; then
+      if [ -f $dst_dir/$target -a $is_forced -ne 0 ]; then
         echo -n "$dst_dir/$target is already exists. Append to it? [y/n]"
         line=''
         while [ "$line" != 'n' ]; do
@@ -90,9 +96,15 @@ case "$mode" in
     done
     ;;
   copy)
-    for target in ${targets[@]}; do
-      cp -i $script_dir/$target $dst_dir/$target
-    done
+    if [ $is_forced -eq 1 ]; then
+      for target in ${targets[@]}; do
+        cp $script_dir/$target $dst_dir/$target
+      done
+    else
+      for target in ${targets[@]}; do
+        cp -i $script_dir/$target $dst_dir/$target
+      done
+    fi
     ;;
   symbolic)
     for target in ${targets[@]}; do
