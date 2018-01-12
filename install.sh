@@ -1,15 +1,14 @@
 #!/bin/sh -eu
 
-targets=(
-  .common_profile.sh
-  .common_rc.sh
-  .bash_profile
-  .bashrc
-  .zprofile
-  .zshrc
-  .inputrc
-)
-
+targets=" \
+  .common_profile.sh \
+  .common_rc.sh \
+  .bash_profile \
+  .bashrc \
+  .zprofile \
+  .zshrc \
+  .inputrc"
+target_list=`echo $targets | cut -f 1- -d ' '`
 
 script_dir=$(cd $(dirname $0); pwd)
 show_usage() {
@@ -78,7 +77,7 @@ done
 
 case "$mode" in
   append)
-    for target in ${targets[@]}; do
+    for target in $target_list; do
       if [ -f $dst_dir/$target -a $is_forced -ne 0 ]; then
         echo -n "$dst_dir/$target is already exists. Append to it? [y/n]"
         line=''
@@ -97,17 +96,17 @@ case "$mode" in
     ;;
   copy)
     if [ $is_forced -eq 1 ]; then
-      for target in ${targets[@]}; do
+      for target in $target_list; do
         cp $script_dir/$target $dst_dir/$target
       done
     else
-      for target in ${targets[@]}; do
+      for target in $target_list; do
         cp -i $script_dir/$target $dst_dir/$target
       done
     fi
     ;;
   symbolic)
-    for target in ${targets[@]}; do
+    for target in $target_list; do
       ln -s $script_dir/$target $dst_dir/$target
     done
     ;;
