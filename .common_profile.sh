@@ -19,8 +19,19 @@ export EDITOR=vim
 case $OSTYPE in
   cygwin | msys)
     alias clear='echo -ne "\ec\e[3J"'
-    export PATH=$PATH:/c/alias/
     export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib/
     export CHERE_INVOKING=1
+    if [ "$OSTYPE" = "msys" ]; then
+      if [ "$PROCESSOR_ARCHITECTURE" = "AMD64" -a "$MSYSTEM" != "MINGW64" ]; then
+        export PATH=$PATH:/mingw64/bin/:/c/alias/
+      elif [ "$PROCESSOR_ARCHITECTURE" = "x86" -a "$MSYSTEM" != "MINGW32" ]; then
+        export PATH=$PATH:/mingw32/bin/:/c/alias/
+      fi
+    else
+      export PATH=$PATH:/c/alias/
+    fi
     ;;
 esac
+
+
+[ -f ~/.local.common_profile.sh ] && source ~/.local.common_profile.sh || :
