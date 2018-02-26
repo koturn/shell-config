@@ -15,8 +15,8 @@ mkcd() {
 }
 
 
-easy-compress() {
-  easy-compress-usage() {
+kompress() {
+  kompress-usage() {
     echo '[Usage]'
     echo "  $0 [options...] [destination-file] [source-files...]"
     echo '[Option]'
@@ -36,8 +36,8 @@ easy-compress() {
   local opt=`getopt -o f:l:o:p:h -l format:,level:,output:,password:,help -- "$@"`
   if [ $? -ne 0 ]; then
     echo >&2 'Failed to parse arguments'
-    easy-compress-usage >&2
-    unset -f easy-compress-usage
+    kompress-usage >&2
+    unset -f kompress-usage
     return 1
   fi
   eval set -- "$opt"
@@ -55,8 +55,8 @@ easy-compress() {
         shift
         ;;
       -h | --help)
-        easy-compress-usage
-        unset -f easy-compress-usage
+        kompress-usage
+        unset -f kompress-usage
         return 0
         ;;
       -o | --output)
@@ -77,14 +77,14 @@ easy-compress() {
 
   if [ $# -eq 0 ]; then
     echo >&2 'Failed to parse arguments'
-    easy-compress-usage >&2
-    unset -f easy-compress-usage
+    kompress-usage >&2
+    unset -f kompress-usage
     return 1
   elif [ $# -eq 1 ]; then
     local opt_output=`${dstfile+:} false && echo "--output=\"$dstfile\""`
     local opt_password=`${password+:} false && echo "--password=\"$password\""`
-    easy-compress-one --format="$format" --level="$level" $opt_output $opt_password $@
-    unset -f easy-compress-usage
+    kompress-one --format="$format" --level="$level" $opt_output $opt_password $@
+    unset -f kompress-usage
     return $?
   elif ! ${dstfile+:} false; then
     local dstfile="$1"
@@ -118,7 +118,7 @@ easy-compress() {
     *.gz)
       if [ $# -gt 1 ]; then
         echo >&2 "Too many files are specified for gzip compression: $@"
-        unset -f easy-compress-usage
+        unset -f kompress-usage
         return 1
       fi
       gzip "-$level" -c "$1" > "$dstfile"
@@ -127,16 +127,16 @@ easy-compress() {
     *.bz2)
       if [ $# -gt 1 ]; then
         echo >&2 "Too many files are specified for bzip2 compression: $@"
-        unset -f easy-compress-usage
+        unset -f kompress-usage
         return 1
       fi
       bzip2 "-$level" -c "$1" > "$dstfile"
       ret=$?
       ;;
-    *.xz)
+    *.xz | *.lzma)
       if [ $# -gt 1 ]; then
         echo >&2 "Too many files are specified for xz compression: $@"
-        unset -f easy-compress-usage
+        unset -f kompress-usage
         return 1
       fi
       xz "-$level" -c "$1" > "$dstfile"
@@ -164,17 +164,17 @@ easy-compress() {
       ;;
     *)
       echo >&2 "Cannot compress files to $dstfile: unrecognized compression format"
-      unset -f easy-compress-usage
+      unset -f kompress-usage
       return 1
       ;;
   esac
-  unset -f easy-compress-usage
+  unset -f kompress-usage
   return $ret
 }
 
 
-easy-compress-one() {
-  easy-compress-one-usage() {
+kompress-one() {
+  kompress-one-usage() {
     echo '[Usage]'
     echo "  $0 [options...] [source-directory]"
     echo '[Option]'
@@ -194,8 +194,8 @@ easy-compress-one() {
   local opt=`getopt -o f:l:o:p:h -l format:,level:,output:,password:,help -- "$@"`
   if [ $? -ne 0 ]; then
     echo >&2 'Failed to parse arguments'
-    easy-compress-one-usage >&2
-    unset -f easy-compress-one-usage
+    kompress-one-usage >&2
+    unset -f kompress-one-usage
     return 1
   fi
   eval set -- "$opt"
@@ -217,8 +217,8 @@ easy-compress-one() {
         shift
         ;;
       -h | --help)
-        easy-compress-one-usage
-        unset -f easy-compress-one-usage
+        kompress-one-usage
+        unset -f kompress-one-usage
         return 0
         ;;
       -p | --password)
@@ -235,11 +235,11 @@ easy-compress-one() {
 
   if [ $# -eq 0 ]; then
     echo >&2 'No item is specified'
-    unset -f easy-compress-one-usage
+    unset -f kompress-one-usage
     return 1
   elif [ $# -gt 1 ]; then
     echo >&2 'Too many items are specified'
-    unset -f easy-compress-one-usage
+    unset -f kompress-one-usage
     return 1
   fi
 
@@ -292,7 +292,7 @@ easy-compress-one() {
         ;;
       *)
         echo >&2 "Unable to recognize compression format: $format"
-        unset -f easy-compress-one-usage
+        unset -f kompress-one-usage
         return 1
         ;;
     esac
@@ -338,18 +338,18 @@ easy-compress-one() {
         ;;
       *)
         echo >&2 "Unable to recognize compression format: $format"
-        unset -f easy-compress-one-usage
+        unset -f kompress-one-usage
         return 1
         ;;
     esac
   fi
-  unset -f easy-compress-one-usage
+  unset -f kompress-one-usage
   return $ret
 }
 
 
-easy-extract() {
-  easy-extract-usage() {
+dekompress() {
+  dekompress-usage() {
     echo '[Usage]'
     echo "  $0 [options...] [source-directory]"
     echo '[Option]'
@@ -363,8 +363,8 @@ easy-extract() {
   local opt=`getopt -o p:h -l password:,help -- "$@"`
   if [ $? -ne 0 ]; then
     echo >&2 'Failed to parse arguments'
-    easy-extract-usage >&2
-    unset -f easy-extract-usage
+    dekompress-usage >&2
+    unset -f dekompress-usage
     return 1
   fi
   eval set -- "$opt"
@@ -372,8 +372,8 @@ easy-extract() {
   while [ $# -gt 0 ]; do
     case $1 in
       -h | --help)
-        easy-extract-usage
-        unset -f easy-extract-usage
+        dekompress-usage
+        unset -f dekompress-usage
         return 0
         ;;
       -p | --password)
@@ -390,11 +390,11 @@ easy-extract() {
 
   if [ $# -eq 0 ]; then
     echo >&2 'No item is specified'
-    unset -f easy-extract-usage
+    unset -f dekompress-usage
     return 1
   elif [ $# -gt 1 ]; then
     echo >&2 "Too many items are specified: $@"
-    unset -f easy-extract-usage
+    unset -f dekompress-usage
     return 1
   fi
 
@@ -454,7 +454,7 @@ easy-extract() {
       return 1
       ;;
   esac
-  unset -f easy-extract-usage
+  unset -f dekompress-usage
   return $ret
 }
 
