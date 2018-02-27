@@ -105,11 +105,23 @@ kompress() {
       ret=$?
       BZIP2=$tmp
       ;;
-    *.tar.xz | *.txz)
+    *.tar.xz | *.txz | *.tar.lzma)
       local tmp="$XZ_OPT"; XZ_OPT="-$level"
       tar Jcvf "$dstfile" $@
       ret=$?
       XZ_OPT=$tmp
+      ;;
+    *.tar.br)
+      tar cvf - $@ | brotli - -f "-$level" -o "$dstfile"
+      ret=$?
+      ;;
+    *.tar.lz4)
+      tar cvf - $@ | lz4 - -f "-$level" "$dstfile"
+      ret=$?
+      ;;
+    *.zst)
+      tar cvf - $@ | zstd - -f "-$level" -o "$dstfile"
+      ret=$?
       ;;
     *.tar)
       tar cvf "$dstfile" $@
@@ -160,6 +172,15 @@ kompress() {
       else
         7z a -mx="$level" "$dstfile" $@
       fi
+      ret=$?
+      ;;
+    *.lz4)
+      if [ $# -gt 1 ]; then
+        echo >&2 "Too many files are specified for lz4 compression: $@"
+        unset -f kompress-usage
+        return 1
+      fi
+      lz4 -f "-$level" $@ "$dstfile"
       ret=$?
       ;;
     *)
@@ -260,7 +281,7 @@ kompress-one() {
         ret=$?
         BZIP2=$tmp
         ;;
-      xz | txz)
+      xz | txz | lzma)
         ${dstfile+:} false || local dstfile=${1%/}.txz
         local tmp="$XZ_OPT"; XZ_OPT="-$level"
         tar Jcvf "$dstfile" $1
@@ -290,6 +311,21 @@ kompress-one() {
         fi
         ret=$?
         ;;
+      br | brotli)
+        ${dstfile+:} false || local dstfile=${1%/}.tar.br
+        tar cvf - $@ | brotli - -f "-$level" -o "$dstfile"
+        ret=$?
+        ;;
+      lz4)
+        ${dstfile+:} false || local dstfile=${1%/}.tar.lz4
+        tar cvf - $@ | lz4 - -f "-$level" "$dstfile"
+        ret=$?
+        ;;
+      zst | zstd)
+        ${dstfile+:} false || local dstfile=${1%/}.tar.zst
+        tar cvf - $@ | zstd - -f "-$level" -o "$dstfile"
+        ret=$?
+        ;;
       *)
         echo >&2 "Unable to recognize compression format: $format"
         unset -f kompress-one-usage
@@ -300,15 +336,15 @@ kompress-one() {
     case "$format" in
       gzip | gz)
         ${dstfile+:} false || local dstfile="$1.gz"
-        gzip "-$level" -c "$1" > "$dstfile"
+        gzip "-$level" -cf "$1" > "$dstfile"
         ret=$?
         ;;
-      bzip2 | tgz)
+      bzip2)
         ${dstfile+:} false || local dstfile="$1.bz2"
         bzip2 "-$level" -c "$1" > "$dstfile"
         ret=$?
         ;;
-      xz)
+      xz | lzma)
         ${dstfile+:} false || local dstfile="$1.xz"
         xz "-$level" -c "$1" > "$dstfile"
         ret=$?
@@ -335,6 +371,19 @@ kompress-one() {
           7z a -mx="$level" "$1"
         fi
         ret=$?
+        ;;
+      br | brotli)
+        ${dstfile+:} false || local dstfile="$1.bro"
+        brotli -f "-$level" $1 -o "$dstfile"
+        ;;
+      lz4)
+        ${dstfile+:} false || local dstfile="$1.lz4"
+        lz4 -f "-$level" $1 "$dstfile"
+        ret=$?
+        ;;
+      zst | zstd)
+        ${dstfile+:} false || local dstfile="$1.zst"
+        zstd -f "-$level" $1 -o "$dstfile"
         ;;
       *)
         echo >&2 "Unable to recognize compression format: $format"
@@ -409,8 +458,20 @@ dekompress() {
       tar jxvf "$1"
       ret=$?
       ;;
-    *.tar.xz | *.txz)
+    *.tar.xz | *.txz | *.tar.lzma)
       tar Jxvf "$1"
+      ret=$?
+      ;;
+    *.tar.br)
+      brotli -df "$1" && tar xvf "$base" && rm "$base"
+      ret=$?
+      ;;
+    *.tar.lz4)
+      lz4 -df "$1" | tar xv
+      ret=$?
+      ;;
+    *.tar.zst)
+      zstd -df "$1" && tar xvf "$base" && rm "$base"
       ret=$?
       ;;
     *.tar)
@@ -425,7 +486,7 @@ dekompress() {
       bzip2 -dc "$1" > "$base"
       ret=$?
       ;;
-    *.xz)
+    *.xz | *.lzma)
       xz -dc "$1" > "$base"
       ret=$?
       ;;
@@ -447,6 +508,18 @@ dekompress() {
       else
         7z x "$1"
       fi
+      ret=$?
+      ;;
+    *.zst)
+      zstd -df "$1" "$base"
+      ret=$?
+      ;;
+    *.lz4)
+      lz4 -df "$1" "$base"
+      ret=$?
+      ;;
+    *.br)
+      brotli -df "$1" "$base"
       ret=$?
       ;;
     *)
