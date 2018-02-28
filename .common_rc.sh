@@ -30,6 +30,8 @@ kompress() {
     echo '    Specify password (zip and 7zip only)'
     echo '  -h, --help'
     echo '    Show help and exit'
+    echo '  --zopfli'
+    echo '    Use zopfli instead of normal gzip command'
     echo '[Supported Format]'
     echo '  - gzip: *.tar.gz, *.tar.Z, *.tgz, *.gz, *.Z'
     echo '  - bzip2: *.tar.bz2, *.tbz2, *.bz2'
@@ -43,7 +45,7 @@ kompress() {
   }
 
   unset GETOPT_COMPATIBLE
-  local opt=`getopt -o f:l:o:p:h -l format:,level:,output:,password:,help -- "$@"`
+  local opt=`getopt -o f:l:o:p:h -l format:,level:,output:,password:,zopfli,help -- "$@"`
   if [ $? -ne 0 ]; then
     echo >&2 'Failed to parse arguments'
     kompress-usage >&2
@@ -77,6 +79,9 @@ kompress() {
         local password="$2"
         shift
         ;;
+      --zopfli)
+        local use_zopfli=1
+        ;;
       --)
         shift
         break
@@ -93,7 +98,8 @@ kompress() {
   elif [ $# -eq 1 ]; then
     local opt_output=`${dstfile+:} false && echo "--output=\"$dstfile\""`
     local opt_password=`${password+:} false && echo "--password=\"$password\""`
-    kompress-one --format="$format" --level="$level" $opt_output $opt_password $@
+    local opt_zopfli=`${use_zopfli+:} false && echo '--zopfli'`
+    kompress-one --format="$format" --level="$level" $opt_output $opt_password $opt_zopfli $@
     unset -f kompress-usage
     return $?
   elif ! ${dstfile+:} false; then
@@ -104,10 +110,19 @@ kompress() {
   local ret=0
   case $dstfile in
     *.tar.gz | *.tar.Z | *.tgz)
-      local tmp="$GZIP"; GZIP="-$level"
-      tar zcvf "$dstfile" $@
-      ret=$?
-      GZIP=$tmp
+      if ${use_zopfli+:} false; then
+        local tmpfile="`mktemp`"
+        tar cvf $tmpfile $@ \
+          && trap 'rm -f $tmpfile; trap SIGINT' SIGINT \
+          && zopfli -c $tmpfile "--i$level" > "$dstfile"
+        ret=$?
+        rm -f $tmpfile; trap SIGINT
+      else
+        local tmp="$GZIP"; GZIP="-$level"
+        tar zcvf "$dstfile" $@
+        ret=$?
+        GZIP=$tmp
+      fi
       ;;
     *.tar.bz2 | *.tbz2)
       local tmp="$BZIP2"; BZIP2="-$level"
@@ -143,8 +158,13 @@ kompress() {
         unset -f kompress-usage
         return 1
       fi
-      gzip "-$level" -c "$1" > "$dstfile"
-      ret=$?
+      if ${use_zopfli+:} false; then
+        zopfli "--i$level" -c "$1" > "$dstfile"
+        ret=$?
+      else
+        gzip "-$level" -c "$1" > "$dstfile"
+        ret=$?
+      fi
       ;;
     *.bz2)
       if [ $# -gt 1 ]; then
@@ -237,6 +257,8 @@ kompress-one() {
     echo '    Specify password (zip and 7zip only)'
     echo '  -h, --help'
     echo '    Show help and exit'
+    echo '  --zopfli'
+    echo '    Use zopfli instead of normal gzip command'
     echo '[Supported Format]'
     echo '  - gzip: *.tar.gz, *.tar.Z, *.tgz, *.gz, *.Z'
     echo '  - bzip2: *.tar.bz2, *.tbz2, *.bz2'
@@ -250,7 +272,7 @@ kompress-one() {
   }
 
   unset GETOPT_COMPATIBLE
-  local opt=`getopt -o f:l:o:p:h -l format:,level:,output:,password:,help -- "$@"`
+  local opt=`getopt -o f:l:o:p:h -l format:,level:,output:,password:,zopfli,help -- "$@"`
   if [ $? -ne 0 ]; then
     echo >&2 'Failed to parse arguments'
     kompress-one-usage >&2
@@ -284,6 +306,9 @@ kompress-one() {
         local password="$2"
         shift
         ;;
+      --zopfli)
+        local use_zopfli=1
+        ;;
       --)
         shift
         break
@@ -307,10 +332,19 @@ kompress-one() {
     case "$format" in
       gzip | tgz)
         ${dstfile+:} false || local dstfile=${1%/}.tgz
-        local tmp="$GZIP"; GZIP="-$level"
-        tar zcvf "$dstfile" $1
-        ret=$?
-        GZIP=$tmp
+        if ${use_zopfli+:} false; then
+          local tmpfile="`mktemp`"
+          tar cvf $tmpfile $1 \
+            && trap 'rm -f $tmpfile; trap SIGINT' SIGINT \
+            && zopfli -c $tmpfile "--i$level" > "$dstfile"
+          ret=$?
+          rm -f $tmpfile; trap SIGINT
+        else
+          local tmp="$GZIP"; GZIP="-$level"
+          tar zcvf "$dstfile" $1
+          ret=$?
+          GZIP=$tmp
+        fi
         ;;
       bzip2 | tbz2)
         ${dstfile+:} false || local dstfile=${1%/}.tbz2
@@ -374,8 +408,13 @@ kompress-one() {
     case "$format" in
       gzip | gz)
         ${dstfile+:} false || local dstfile="$1.gz"
-        gzip "-$level" -cf "$1" > "$dstfile"
-        ret=$?
+        if ${use_zopfli+:} false; then
+          zopfli "--i$level" -c "$1" > "$dstfile"
+          ret=$?
+        else
+          gzip "-$level" -c "$1" > "$dstfile"
+          ret=$?
+        fi
         ;;
       bzip2)
         ${dstfile+:} false || local dstfile="$1.bz2"
@@ -511,7 +550,7 @@ dekompress() {
       ret=$?
       ;;
     *.tar.br)
-      brotli -df "$1" && tar xvf "$base" && rm "$base"
+      brotli -cdf "$1" | tar xvf -
       ret=$?
       ;;
     *.tar.lz4)
@@ -519,7 +558,7 @@ dekompress() {
       ret=$?
       ;;
     *.tar.zst)
-      zstd -df "$1" && tar xvf "$base" && rm "$base"
+      zstd -cdf "$1" | tar xvf -
       ret=$?
       ;;
     *.tar)
