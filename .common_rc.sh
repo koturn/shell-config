@@ -18,7 +18,7 @@ mkcd() {
 kompress() {
   kompress-usage() {
     echo '[Usage]'
-    echo "  $0 [options...] [destination-file] [source-files...]"
+    echo "  kompress [options...] [destination-file] [source-files...]"
     echo '[Option]'
     echo '  -f FORMAT, --format=FORMAT (Default: gzip)'
     echo '    Specify compression format (Only when the argument is one)'
@@ -30,6 +30,16 @@ kompress() {
     echo '    Specify password (zip and 7zip only)'
     echo '  -h, --help'
     echo '    Show help and exit'
+    echo '[Supported Format]'
+    echo '  - gzip: *.tar.gz, *.tar.Z, *.tgz, *.gz, *.Z'
+    echo '  - bzip2: *.tar.bz2, *.tbz2, *.bz2'
+    echo '  - lzma: *.tar.xz, *.tar.lzma, *.txz, *.xz, *.lzma'
+    echo '  - lha: *.lzh'
+    echo '  - zip: *.zip'
+    echo '  - 7zip: *.7z'
+    echo '  - brotli: *.tar.br, *.br'
+    echo '  - lz4: *.tar.lz4, *.lz4'
+    echo '  - Zstandard: *.tar.zst, *.zst'
   }
 
   unset GETOPT_COMPATIBLE
@@ -105,7 +115,7 @@ kompress() {
       ret=$?
       BZIP2=$tmp
       ;;
-    *.tar.xz | *.txz | *.tar.lzma)
+    *.tar.xz | *.tar.lzma | *.txz)
       local tmp="$XZ_OPT"; XZ_OPT="-$level"
       tar Jcvf "$dstfile" $@
       ret=$?
@@ -127,7 +137,7 @@ kompress() {
       tar cvf "$dstfile" $@
       ret=$?
       ;;
-    *.gz)
+    *.gz | *.Z)
       if [ $# -gt 1 ]; then
         echo >&2 "Too many files are specified for gzip compression: $@"
         unset -f kompress-usage
@@ -174,13 +184,31 @@ kompress() {
       fi
       ret=$?
       ;;
+    *.br)
+      if [ $# -gt 1 ]; then
+        echo >&2 "Too many files are specified for brotli compression: $@"
+        unset -f kompress-usage
+        return 1
+      fi
+      brotli -f "-$level" $1 -o "$dstfile"
+      ret=$?
+      ;;
     *.lz4)
       if [ $# -gt 1 ]; then
         echo >&2 "Too many files are specified for lz4 compression: $@"
         unset -f kompress-usage
         return 1
       fi
-      lz4 -f "-$level" $@ "$dstfile"
+      lz4 -f "-$level" $1 "$dstfile"
+      ret=$?
+      ;;
+    *.zst)
+      if [ $# -gt 1 ]; then
+        echo >&2 "Too many files are specified for Zstandard compression: $@"
+        unset -f kompress-usage
+        return 1
+      fi
+      zstd -f "-$level" $1 -o "$dstfile"
       ret=$?
       ;;
     *)
@@ -197,7 +225,7 @@ kompress() {
 kompress-one() {
   kompress-one-usage() {
     echo '[Usage]'
-    echo "  $0 [options...] [source-directory]"
+    echo "  kompress-one [options...] [source-directory]"
     echo '[Option]'
     echo '  -f FORMAT, --format=FORMAT (Default: gzip)'
     echo '    Specify compression format'
@@ -209,6 +237,16 @@ kompress-one() {
     echo '    Specify password (zip and 7zip only)'
     echo '  -h, --help'
     echo '    Show help and exit'
+    echo '[Supported Format]'
+    echo '  - gzip: *.tar.gz, *.tar.Z, *.tgz, *.gz, *.Z'
+    echo '  - bzip2: *.tar.bz2, *.tbz2, *.bz2'
+    echo '  - lzma: *.tar.xz, *.tar.lzma, *.txz, *.xz, *.lzma'
+    echo '  - lha: *.lzh'
+    echo '  - zip: *.zip'
+    echo '  - 7zip: *.7z'
+    echo '  - brotli: *.tar.br, *.br'
+    echo '  - lz4: *.tar.lz4, *.lz4'
+    echo '  - Zstandard: *.tar.zst, *.zst'
   }
 
   unset GETOPT_COMPATIBLE
@@ -400,12 +438,22 @@ kompress-one() {
 dekompress() {
   dekompress-usage() {
     echo '[Usage]'
-    echo "  $0 [options...] [source-directory]"
+    echo "  dekompress [options...] [source-directory]"
     echo '[Option]'
     echo '  -p PWSSWORD, --password=PASSWORD'
     echo '    Specify password (zip and 7zip only)'
     echo '  -h, --help'
     echo '    Show help and exit'
+    echo '[Supported Format]'
+    echo '  - gzip: *.tar.gz, *.tar.Z, *.tgz, *.gz, *.Z'
+    echo '  - bzip2: *.tar.bz2, *.tbz2, *.bz2'
+    echo '  - lzma: *.tar.xz, *.tar.lzma, *.txz, *.xz, *.lzma'
+    echo '  - lha: *.lzh'
+    echo '  - zip: *.zip'
+    echo '  - 7zip: *.7z'
+    echo '  - brotli: *.tar.br, *.br'
+    echo '  - lz4: *.tar.lz4, *.lz4'
+    echo '  - Zstandard: *.tar.zst, *.zst'
   }
 
   unset GETOPT_COMPATIBLE
@@ -478,7 +526,7 @@ dekompress() {
       tar xvf "$1"
       ret=$?
       ;;
-    *.gz)
+    *.gz | *.Z)
       gzip -dc "$1" > "$base"
       ret=$?
       ;;
