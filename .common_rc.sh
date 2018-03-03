@@ -36,6 +36,7 @@ kompress() {
     echo '  - gzip: *.tar.gz, *.tar.Z, *.tgz, *.gz, *.Z'
     echo '  - bzip2: *.tar.bz2, *.tbz2, *.bz2'
     echo '  - lzma: *.tar.xz, *.tar.lzma, *.txz, *.xz, *.lzma'
+    echo '  - tar: *.tar'
     echo '  - lha: *.lzh'
     echo '  - zip: *.zip'
     echo '  - 7zip: *.7z'
@@ -43,13 +44,13 @@ kompress() {
     echo '  - lz4: *.tar.lz4, *.lz4'
     echo '  - Zstandard: *.tar.zst, *.zst'
   }
+  trap 'unset -f kompress-usage' EXIT
 
   unset GETOPT_COMPATIBLE
   local opt=`getopt -o f:l:o:p:h -l format:,level:,output:,password:,zopfli,help -- "$@"`
   if [ $? -ne 0 ]; then
     echo >&2 'Failed to parse arguments'
     kompress-usage >&2
-    unset -f kompress-usage
     return 1
   fi
   eval set -- "$opt"
@@ -68,7 +69,6 @@ kompress() {
         ;;
       -h | --help)
         kompress-usage
-        unset -f kompress-usage
         return 0
         ;;
       -o | --output)
@@ -93,14 +93,12 @@ kompress() {
   if [ $# -eq 0 ]; then
     echo >&2 'Failed to parse arguments'
     kompress-usage >&2
-    unset -f kompress-usage
     return 1
   elif [ $# -eq 1 ]; then
     local opt_output=`${dstfile+:} false && echo "--output=\"$dstfile\""`
     local opt_password=`${password+:} false && echo "--password=\"$password\""`
     local opt_zopfli=`${use_zopfli+:} false && echo '--zopfli'`
     kompress-one --format="$format" --level="$level" $opt_output $opt_password $opt_zopfli $@
-    unset -f kompress-usage
     return $?
   elif ! ${dstfile+:} false; then
     local dstfile="$1"
@@ -113,7 +111,7 @@ kompress() {
       if ${use_zopfli+:} false; then
         local tmpfile="`mktemp`"
         tar cvf $tmpfile $@ \
-          && trap 'rm -f $tmpfile; trap SIGINT' SIGINT \
+          && trap 'rm -f $tmpfile; trap SIGHUP SIGINT SIGTERM' SIGHUP SIGINT SIGTERM \
           && zopfli -c $tmpfile "--i$level" > "$dstfile"
         ret=$?
         rm -f $tmpfile; trap SIGINT
@@ -155,7 +153,6 @@ kompress() {
     *.gz | *.Z)
       if [ $# -gt 1 ]; then
         echo >&2 "Too many files are specified for gzip compression: $@"
-        unset -f kompress-usage
         return 1
       fi
       if ${use_zopfli+:} false; then
@@ -169,7 +166,6 @@ kompress() {
     *.bz2)
       if [ $# -gt 1 ]; then
         echo >&2 "Too many files are specified for bzip2 compression: $@"
-        unset -f kompress-usage
         return 1
       fi
       bzip2 "-$level" -c "$1" > "$dstfile"
@@ -178,7 +174,6 @@ kompress() {
     *.xz | *.lzma)
       if [ $# -gt 1 ]; then
         echo >&2 "Too many files are specified for xz compression: $@"
-        unset -f kompress-usage
         return 1
       fi
       xz "-$level" -c "$1" > "$dstfile"
@@ -207,7 +202,6 @@ kompress() {
     *.br)
       if [ $# -gt 1 ]; then
         echo >&2 "Too many files are specified for brotli compression: $@"
-        unset -f kompress-usage
         return 1
       fi
       brotli -f "-$level" $1 -o "$dstfile"
@@ -216,7 +210,6 @@ kompress() {
     *.lz4)
       if [ $# -gt 1 ]; then
         echo >&2 "Too many files are specified for lz4 compression: $@"
-        unset -f kompress-usage
         return 1
       fi
       lz4 -f "-$level" $1 "$dstfile"
@@ -225,7 +218,6 @@ kompress() {
     *.zst)
       if [ $# -gt 1 ]; then
         echo >&2 "Too many files are specified for Zstandard compression: $@"
-        unset -f kompress-usage
         return 1
       fi
       zstd -f "-$level" $1 -o "$dstfile"
@@ -233,11 +225,9 @@ kompress() {
       ;;
     *)
       echo >&2 "Cannot compress files to $dstfile: unrecognized compression format"
-      unset -f kompress-usage
       return 1
       ;;
   esac
-  unset -f kompress-usage
   return $ret
 }
 
@@ -263,6 +253,7 @@ kompress-one() {
     echo '  - gzip: *.tar.gz, *.tar.Z, *.tgz, *.gz, *.Z'
     echo '  - bzip2: *.tar.bz2, *.tbz2, *.bz2'
     echo '  - lzma: *.tar.xz, *.tar.lzma, *.txz, *.xz, *.lzma'
+    echo '  - tar: *.tar'
     echo '  - lha: *.lzh'
     echo '  - zip: *.zip'
     echo '  - 7zip: *.7z'
@@ -270,13 +261,13 @@ kompress-one() {
     echo '  - lz4: *.tar.lz4, *.lz4'
     echo '  - Zstandard: *.tar.zst, *.zst'
   }
+  trap 'unset -f kompress-one-usage' EXIT
 
   unset GETOPT_COMPATIBLE
   local opt=`getopt -o f:l:o:p:h -l format:,level:,output:,password:,zopfli,help -- "$@"`
   if [ $? -ne 0 ]; then
     echo >&2 'Failed to parse arguments'
     kompress-one-usage >&2
-    unset -f kompress-one-usage
     return 1
   fi
   eval set -- "$opt"
@@ -299,7 +290,6 @@ kompress-one() {
         ;;
       -h | --help)
         kompress-one-usage
-        unset -f kompress-one-usage
         return 0
         ;;
       -p | --password)
@@ -319,11 +309,9 @@ kompress-one() {
 
   if [ $# -eq 0 ]; then
     echo >&2 'No item is specified'
-    unset -f kompress-one-usage
     return 1
   elif [ $# -gt 1 ]; then
     echo >&2 'Too many items are specified'
-    unset -f kompress-one-usage
     return 1
   fi
 
@@ -400,7 +388,6 @@ kompress-one() {
         ;;
       *)
         echo >&2 "Unable to recognize compression format: $format"
-        unset -f kompress-one-usage
         return 1
         ;;
     esac
@@ -464,12 +451,10 @@ kompress-one() {
         ;;
       *)
         echo >&2 "Unable to recognize compression format: $format"
-        unset -f kompress-one-usage
         return 1
         ;;
     esac
   fi
-  unset -f kompress-one-usage
   return $ret
 }
 
@@ -487,6 +472,7 @@ dekompress() {
     echo '  - gzip: *.tar.gz, *.tar.Z, *.tgz, *.gz, *.Z'
     echo '  - bzip2: *.tar.bz2, *.tbz2, *.bz2'
     echo '  - lzma: *.tar.xz, *.tar.lzma, *.txz, *.xz, *.lzma'
+    echo '  - tar: *.tar'
     echo '  - lha: *.lzh'
     echo '  - zip: *.zip'
     echo '  - 7zip: *.7z'
@@ -494,13 +480,13 @@ dekompress() {
     echo '  - lz4: *.tar.lz4, *.lz4'
     echo '  - Zstandard: *.tar.zst, *.zst'
   }
+  trap 'unset -f dekompress-usage' EXIT
 
   unset GETOPT_COMPATIBLE
   local opt=`getopt -o p:h -l password:,help -- "$@"`
   if [ $? -ne 0 ]; then
     echo >&2 'Failed to parse arguments'
     dekompress-usage >&2
-    unset -f dekompress-usage
     return 1
   fi
   eval set -- "$opt"
@@ -509,7 +495,6 @@ dekompress() {
     case $1 in
       -h | --help)
         dekompress-usage
-        unset -f dekompress-usage
         return 0
         ;;
       -p | --password)
@@ -526,11 +511,9 @@ dekompress() {
 
   if [ $# -eq 0 ]; then
     echo >&2 'No item is specified'
-    unset -f dekompress-usage
     return 1
   elif [ $# -gt 1 ]; then
     echo >&2 "Too many items are specified: $@"
-    unset -f dekompress-usage
     return 1
   fi
 
@@ -614,7 +597,6 @@ dekompress() {
       return 1
       ;;
   esac
-  unset -f dekompress-usage
   return $ret
 }
 
