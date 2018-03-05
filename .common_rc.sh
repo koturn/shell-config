@@ -36,6 +36,8 @@ kompress() {
     echo '  - gzip: *.tar.gz, *.tar.Z, *.tgz, *.gz, *.Z'
     echo '  - bzip2: *.tar.bz2, *.tbz2, *.bz2'
     echo '  - lzma: *.tar.xz, *.tar.lzma, *.txz, *.xz, *.lzma'
+    echo '  - lzip: *.tar.lz, *.tlz, *.lz'
+    echo '  - lzop: *.tar.lzo, *.tzo, *.lzo'
     echo '  - tar: *.tar'
     echo '  - lha: *.lzh'
     echo '  - zip: *.zip'
@@ -134,6 +136,14 @@ kompress() {
       ret=$?
       XZ_OPT=$tmp
       ;;
+    *.tar.lz | *.tlz)
+      tar cvf - $@ | lzip - -c "-$level" > "$dstfile"
+      ret=$?
+      ;;
+    *.tar.lzo | *.tzo)
+      tar cvf - $@ | lzop - -f "-$level" -o "$dstfile"
+      ret=$?
+      ;;
     *.tar.br)
       tar cvf - $@ | brotli - -f "-$level" -o "$dstfile"
       ret=$?
@@ -179,11 +189,27 @@ kompress() {
       xz "-$level" -c "$1" > "$dstfile"
       ret=$?
       ;;
+    *.lz)
+      if [ $# -gt 1 ]; then
+        echo >&2 "Too many files are specified for lzip compression: $@"
+        return 1
+      fi
+      lzip "-$level" -c "$1" > "$dstfile"
+      ret=$?
+      ;;
+    *.lzo)
+      if [ $# -gt 1 ]; then
+        echo >&2 "Too many files are specified for lzo compression: $@"
+        return 1
+      fi
+      lzop "-$level" -f "$1" -o "$dstfile"
+      ret=$?
+      ;;
     *.lzh)
       lha av "$dstfile" $@
       ret=$?
       ;;
-    *.zip)
+    *.zip | *.jar | *.docx | *.xlsx | *.pptx)
       if ${password+:} false; then
         zip "-$level" -e --password=$password -r -v "$dstfile" $@
       else
@@ -253,6 +279,8 @@ kompress-one() {
     echo '  - gzip: *.tar.gz, *.tar.Z, *.tgz, *.gz, *.Z'
     echo '  - bzip2: *.tar.bz2, *.tbz2, *.bz2'
     echo '  - lzma: *.tar.xz, *.tar.lzma, *.txz, *.xz, *.lzma'
+    echo '  - lzip: *.tar.lz, *.tlz, *.lz'
+    echo '  - lzop: *.tar.lzo, *.tzo, *.lzo'
     echo '  - tar: *.tar'
     echo '  - lha: *.lzh'
     echo '  - zip: *.zip'
@@ -348,6 +376,16 @@ kompress-one() {
         ret=$?
         XZ_OPT=$tmp
         ;;
+      lzip)
+        ${dstfile+:} false || local dstfile=${1%/}.tlz
+        tar cvf - $@ | lzip - -c "-$level" > "$dstfile"
+        ret=$?
+        ;;
+      lzop)
+        ${dstfile+:} false || local dstfile=${1%/}.tzo
+        tar cvf - $@ | lzop - -f "-$level" -o "$dstfile"
+        ret=$?
+        ;;
       lha | lzh)
         ${dstfile+:} false || local dstfile="${1%/}.lzh"
         lha av "$dstfile" "$1"
@@ -413,6 +451,16 @@ kompress-one() {
         xz "-$level" -c "$1" > "$dstfile"
         ret=$?
         ;;
+      lzip)
+        ${dstfile+:} false || local dstfile="$1.lz"
+        lzip "-$level" -f "$1" -o "$dstfile"
+        ret=$?
+        ;;
+      lzop)
+        ${dstfile+:} false || local dstfile="$1.lzo"
+        lzop "-$level" -f "$1" -o "$dstfile"
+        ret=$?
+        ;;
       lha | lzh)
         ${dstfile+:} false || local dstfile="$1.lzh"
         lha av "$dstfile" "$1"
@@ -439,6 +487,7 @@ kompress-one() {
       br | brotli)
         ${dstfile+:} false || local dstfile="$1.bro"
         brotli -f "-$level" $1 -o "$dstfile"
+        ret=$?
         ;;
       lz4)
         ${dstfile+:} false || local dstfile="$1.lz4"
@@ -448,6 +497,7 @@ kompress-one() {
       zst | zstd)
         ${dstfile+:} false || local dstfile="$1.zst"
         zstd -f "-$level" $1 -o "$dstfile"
+        ret=$?
         ;;
       *)
         echo >&2 "Unable to recognize compression format: $format"
@@ -472,6 +522,8 @@ dekompress() {
     echo '  - gzip: *.tar.gz, *.tar.Z, *.tgz, *.gz, *.Z'
     echo '  - bzip2: *.tar.bz2, *.tbz2, *.bz2'
     echo '  - lzma: *.tar.xz, *.tar.lzma, *.txz, *.xz, *.lzma'
+    echo '  - lzip: *.tar.lz, *.tlz, *.lz'
+    echo '  - lzop: *.tar.lzo, *.tzo, *.lzo'
     echo '  - tar: *.tar'
     echo '  - lha: *.lzh'
     echo '  - zip: *.zip'
@@ -532,16 +584,22 @@ dekompress() {
       tar Jxvf "$1"
       ret=$?
       ;;
+    *.tar.lz | *.tlz)
+      lzip -cd "$1" | tar xv
+      ;;
+    *.tar.lzo | *.tzo)
+      lzop -cd "$1" | tar xv
+      ;;
     *.tar.br)
-      brotli -cdf "$1" | tar xvf -
+      brotli -cd "$1" | tar xv
       ret=$?
       ;;
     *.tar.lz4)
-      lz4 -df "$1" | tar xv
+      lz4 -cd "$1" | tar xv
       ret=$?
       ;;
     *.tar.zst)
-      zstd -cdf "$1" | tar xvf -
+      zstd -cd "$1" | tar xv
       ret=$?
       ;;
     *.tar)
@@ -560,11 +618,17 @@ dekompress() {
       xz -dc "$1" > "$base"
       ret=$?
       ;;
+    *.lz)
+      lzip -d "$1" -o "$base"
+      ;;
+    *.lzo)
+      lzop -d "$1" -o "$base"
+      ;;
     *.lzh)
       lha xv "$1"
       ret=$?
       ;;
-    *.zip)
+    *.zip | *.jar | *.docx | *.xlsx | *.pptx)
       if ${password+:} false; then
         unzip -P $password "$1"
       else
@@ -593,7 +657,7 @@ dekompress() {
       ret=$?
       ;;
     *)
-      echo "Cannot extract files from $1 - unrecognized compression format" 1>&2
+      echo >&2 "Cannot extract files from $1 - unrecognized compression format"
       return 1
       ;;
   esac
@@ -625,7 +689,7 @@ git-init-commit() {
 
 github-first-push() {
   if [ $# -lt 1 ]; then
-    echo 'Invalid arguments' 1>&2
+    echo >&2 'Invalid arguments'
     echo '[USAGE]'
     echo "  $0 REMOTE-REPOSITORY-NAME"
     return 1
@@ -637,7 +701,7 @@ github-first-push() {
 
 github-clone() {
   if [ $# -lt 1 ]; then
-    echo 'Invalid arguments' 1>&2
+    echo >&2 'Invalid arguments'
     echo '[USAGE]'
     echo "  $0 USER-NAME REPOSITORY-NAME"
     return 1
