@@ -116,7 +116,7 @@ kompress() {
           && trap 'rm -f $tmpfile; trap SIGHUP SIGINT SIGTERM' SIGHUP SIGINT SIGTERM \
           && zopfli -c $tmpfile "--i$level" > "$dstfile"
         ret=$?
-        rm -f $tmpfile; trap SIGINT
+        rm -f $tmpfile; trap SIGHUP SIGINT SIGTERM
       else
         local tmp="$GZIP"; GZIP="-$level"
         tar zcvf "$dstfile" $@
@@ -713,6 +713,18 @@ github-clone() {
 git-commit-chmod() {
   find . -type d -name '.git' -prune -o -type d -exec chmod 755 {} \;
   find . -type d -name '.git' -prune -o -type f -exec chmod 644 {} \;
+}
+
+
+git-commit-ammend-date() {
+  if [ $# -ne 1 ]; then
+    echo >&2 'Invalid arguments'
+    echo '[USAGE]'
+    echo "  $0 DATETIME"
+    echo '  Date time format: YYYY-MM-dd HH:mm:ss +0900'
+    return 1
+  fi
+  GIT_COMMITTER_DATE="$1" git commit --amend --date="$1"
 }
 
 
