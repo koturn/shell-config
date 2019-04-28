@@ -21,11 +21,16 @@ case $OSTYPE in
     alias clear='echo -ne "\ec\e[3J"'
     export LIBRARY_PATH=$LIBRARY_PATH:/usr/local/lib/
     export CHERE_INVOKING=1
+    export CYGWIN="$CYGWIN error_start=dumper"
     if [ "$OSTYPE" = "msys" ]; then
       if [ "$PROCESSOR_ARCHITECTURE" = "AMD64" -a "$MSYSTEM" != "MINGW64" ]; then
         export PATH=$PATH:/mingw64/bin/:/c/alias/
+        export LIBRARY_PATH=$PATH:/mingw64/lib/
+        export LD_LIBRARY_PATH=$PATH:/mingw64/bin/
       elif [ "$PROCESSOR_ARCHITECTURE" = "x86" -a "$MSYSTEM" != "MINGW32" ]; then
         export PATH=$PATH:/mingw32/bin/:/c/alias/
+        export LIBRARY_PATH=$PATH:/mingw32/lib/
+        export LD_LIBRARY_PATH=$PATH:/mingw32/bin/
       fi
     else
       export PATH=$PATH:/c/alias/
