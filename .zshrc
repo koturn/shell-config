@@ -17,18 +17,18 @@ function rprompt-git-current-branch {
   if [[ "$PWD" =~ '/\.git(/.*)?$' ]]; then
     return
   fi
-  name=$(basename "`git symbolic-ref HEAD 2> /dev/null`")
+  name=$(basename "$(git symbolic-ref HEAD 2> /dev/null)")
   if [[ -z $name ]]; then
     return
   fi
-  gitdir=`git rev-parse --git-dir 2> /dev/null`
-  action=`VCS_INFO_git_getaction "$gitdir"` && action="($action)"
-  st=`git status 2> /dev/null`
-  if [[ -n `echo "$st" | grep "^nothing to"` ]]; then
+  gitdir=$(git rev-parse --git-dir 2> /dev/null)
+  action=$(VCS_INFO_git_getaction "$gitdir") && action="($action)"
+  st=$(git status 2> /dev/null)
+  if [[ -n $(echo "$st" | grep "^nothing to") ]]; then
     color=%F{green}
-  elif [[ -n `echo "$st" | grep "^nothing added"` ]]; then
+  elif [[ -n $(echo "$st" | grep "^nothing added") ]]; then
     color=%F{yellow}
-  elif [[ -n `echo "$st" | grep "^# Untracked"` ]]; then
+  elif [[ -n $(echo "$st" | grep "^# Untracked") ]]; then
     color=%B%F{red}
   else
     color=%F{red}
@@ -38,14 +38,14 @@ function rprompt-git-current-branch {
 
 PROMPT="%(?.%B%F{magenta}(*'-'.%B%F{red}(;_;))%(?..<[\$?]) %(!.#.$) %f%b"
 PROMPT2="%B%F{magenta}%_> %f%b"
-RPROMPT='%B%F{yellow}[%f%b%D{%K:%M:%S} `rprompt-git-current-branch`%B%F{yellow}%~]%f%b'
+RPROMPT='%B%F{yellow}[%f%b%D{%K:%M:%S} $(rprompt-git-current-branch)%B%F{yellow}%~]%f%b'
 SPROMPT="%B%F{red} correct: %R -> %r [n,y,a,e]? %f%b"
 
 # Terminal title
 case "${TERM}" in
   kterm* | xterm*)
     precmd() {
-      # echo -ne "\033]0;${USER}@${HOST}\007"
+      echo -ne "\033]0;${USER}@${HOST}\007"
     }
     ;;
 esac

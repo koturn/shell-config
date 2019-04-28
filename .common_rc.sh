@@ -49,7 +49,7 @@ kompress() {
   trap 'unset -f kompress-usage' EXIT
 
   unset GETOPT_COMPATIBLE
-  local opt=`getopt -o f:l:o:p:h -l format:,level:,output:,password:,zopfli,help -- "$@"`
+  local opt=$(getopt -o f:l:o:p:h -l format:,level:,output:,password:,zopfli,help -- "$@")
   if [ $? -ne 0 ]; then
     echo >&2 'Failed to parse arguments'
     kompress-usage >&2
@@ -97,9 +97,9 @@ kompress() {
     kompress-usage >&2
     return 1
   elif [ $# -eq 1 ]; then
-    local opt_output=`${dstfile+:} false && echo "--output=\"$dstfile\""`
-    local opt_password=`${password+:} false && echo "--password=\"$password\""`
-    local opt_zopfli=`${use_zopfli+:} false && echo '--zopfli'`
+    local opt_output=$(${dstfile+:} false && echo "--output=\"$dstfile\"")
+    local opt_password=$(${password+:} false && echo "--password=\"$password\"")
+    local opt_zopfli=$(${use_zopfli+:} false && echo '--zopfli')
     kompress-one --format="$format" --level="$level" $opt_output $opt_password $opt_zopfli $@
     return $?
   elif ! ${dstfile+:} false; then
@@ -111,7 +111,7 @@ kompress() {
   case $dstfile in
     *.tar.gz | *.tar.Z | *.tgz)
       if ${use_zopfli+:} false; then
-        local tmpfile="`mktemp`"
+        local tmpfile="$(mktemp)"
         tar cvf $tmpfile $@ \
           && trap 'rm -f $tmpfile; trap SIGHUP SIGINT SIGTERM' SIGHUP SIGINT SIGTERM \
           && zopfli -c $tmpfile "--i$level" > "$dstfile"
@@ -292,7 +292,7 @@ kompress-one() {
   trap 'unset -f kompress-one-usage' EXIT
 
   unset GETOPT_COMPATIBLE
-  local opt=`getopt -o f:l:o:p:h -l format:,level:,output:,password:,zopfli,help -- "$@"`
+  local opt=$(getopt -o f:l:o:p:h -l format:,level:,output:,password:,zopfli,help -- "$@")
   if [ $? -ne 0 ]; then
     echo >&2 'Failed to parse arguments'
     kompress-one-usage >&2
@@ -349,7 +349,7 @@ kompress-one() {
       gzip | tgz)
         ${dstfile+:} false || local dstfile=${1%/}.tgz
         if ${use_zopfli+:} false; then
-          local tmpfile="`mktemp`"
+          local tmpfile="$(mktemp)"
           tar cvf $tmpfile $1 \
             && trap 'rm -f $tmpfile; trap SIGINT' SIGINT \
             && zopfli -c $tmpfile "--i$level" > "$dstfile"
@@ -535,7 +535,7 @@ dekompress() {
   trap 'unset -f dekompress-usage' EXIT
 
   unset GETOPT_COMPATIBLE
-  local opt=`getopt -o p:h -l password:,help -- "$@"`
+  local opt=$(getopt -o p:h -l password:,help -- "$@")
   if [ $? -ne 0 ]; then
     echo >&2 'Failed to parse arguments'
     dekompress-usage >&2
@@ -721,7 +721,7 @@ git-commit-ammend-date() {
     echo >&2 'Invalid arguments'
     echo '[USAGE]'
     echo "  $0 DATETIME"
-    echo '  Date time format: YYYY-MM-dd HH:mm:ss +0900'
+    echo '  Date time example: 2018-01-23 10:30:20 +0900'
     return 1
   fi
   GIT_COMMITTER_DATE="$1" git commit --amend --date="$1"
@@ -732,6 +732,12 @@ case ${OSTYPE} in
   cygwin | msys)
     open-browser() {
       rundll32 url.dll,FileProtocolHandler $1
+    }
+    putklip() {
+      cat $* > /dev/clipboard
+    }
+    getklip() {
+      cat /dev/clipboard
     }
     ;;
   darwin*)
