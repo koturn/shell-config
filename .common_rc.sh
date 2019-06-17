@@ -108,7 +108,7 @@ kompress() {
   fi
 
   local ret=0
-  case $dstfile in
+  case $(echo $dstfile | tr '[:upper:]' '[:lower:]') in
     *.tar.gz | *.tar.Z | *.tgz)
       if ${use_zopfli+:} false; then
         local tmpfile="$(mktemp)"
@@ -571,7 +571,7 @@ dekompress() {
 
   local base="${1%.*}"
   local ret=0
-  case $1 in
+  case $(echo $1 | tr '[:upper:]' '[:lower:]') in
     *.tar.gz | *.tar.Z | *.tgz)
       tar zxvf "$1"
       ret=$?
