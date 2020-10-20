@@ -2,18 +2,19 @@ alias gcc='gcc -std=gnu11 -Wall -Wextra'
 alias g++='g++ -std=gnu++14 -Wall -Wextra'
 alias grep='grep --color=auto'
 alias ls='ls --color=auto'
+alias diff='diff -u --color=auto'
 alias vsh='vi -c VimShell'
 alias gvsh='gvim -c VimShell &'
 alias cls='echo -ne "\ec\e[3J"'
 alias cp='cp -i'
 alias mv='mv -i'
+alias tree='tree --charset unicode'
 [ -f /usr/local/bin/vim ] && alias vim=/usr/local/bin/vim || :
 
 
 mkcd() {
-  \mkdir $1 && \cd $1
+  \mkdir -p $1 && \cd "$_"
 }
-
 
 kompress() {
   kompress-usage() {
