@@ -12,28 +12,26 @@ colors
 
 autoload -Uz VCS_INFO_get_data_git; VCS_INFO_get_data_git 2> /dev/null
 setopt prompt_subst
-function rprompt-git-current-branch {
-  local name st color gitdir action
-  if [[ "$PWD" =~ '/\.git(/.*)?$' ]]; then
-    return
-  fi
-  name=$(basename "$(git symbolic-ref HEAD 2> /dev/null)")
-  if [[ -z $name ]]; then
-    return
-  fi
-  gitdir=$(git rev-parse --git-dir 2> /dev/null)
-  action=$(VCS_INFO_git_getaction "$gitdir") && action="($action)"
-  st=$(git status 2> /dev/null)
-  if [[ -n $(echo "$st" | grep "^nothing to") ]]; then
-    color=%F{green}
-  elif [[ -n $(echo "$st" | grep "^nothing added") ]]; then
-    color=%F{yellow}
-  elif [[ -n $(echo "$st" | grep "^# Untracked") ]]; then
-    color=%B%F{red}
-  else
-    color=%F{red}
-  fi
-  echo "$color$name$action%f%b "
+rprompt-git-current-branch() {
+  local name action color
+  [[ "${PWD}" =~ '/\.git/?' ]] && return || :
+  name=${"$(git symbolic-ref HEAD 2> /dev/null)"##*/} || return
+  action=$(VCS_INFO_git_getaction "$(git rev-parse --git-dir 2> /dev/null)") && action="(${action})"
+  case "$(git status 2> /dev/null | tail -1)" in
+    'nothing to'*)
+      color=%F{green}
+      ;;
+    'nothing added'*)
+      color=%F{yellow}
+      ;;
+    '# Untracked'*)
+      color=%B%F{red}
+      ;;
+    *)
+      color=%F{red}
+      ;;
+  esac
+  echo "${color}${name}${action}%f%b "
 }
 
 PROMPT="%(?.%B%F{magenta}(*'-'.%B%F{red}(;_;))%(?..<[\$?]) %(!.#.$) %f%b"
@@ -86,8 +84,13 @@ setopt list_types        # 補完候補表示時にファイルの種類を表�
 
 ### Moving directory ###
 # execute ls automatically after moving directory
-function chpwd() {
+chpwd() {
   ls --color=auto
+  git rev-parse 2> /dev/null && {
+    RPROMPT='%B%F{yellow}[%f%b%D{%K:%M:%S} $(rprompt-git-current-branch)%B%F{yellow}%~]%f%b'
+  } || {
+    RPROMPT='%B%F{yellow}[%f%b%D{%K:%M:%S} %B%F{yellow}%~]%f%b'
+  }
 }
 setopt autocd             # Move directory by directory name only, withput "cd"
 setopt autopushd          # 自動でpushdする。cd -[tab]で候補表示
