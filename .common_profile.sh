@@ -39,4 +39,4 @@ case $OSTYPE in
 esac
 
 
-[ -f ~/.local.common_profile.sh ] && source ~/.local.common_profile.sh || :
+[ -f ~/.local.common_profile.sh ] && . ~/.local.common_profile.sh || :

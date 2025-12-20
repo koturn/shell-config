@@ -1,1 +1,1 @@
-[ -f ~/.common_profile.sh ] && source ~/.common_profile.sh || :
+[ -f ~/.common_profile.sh ] && . ~/.common_profile.sh || :

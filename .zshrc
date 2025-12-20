@@ -1,4 +1,4 @@
-[ -f ~/.common_rc.sh ] && source ~/.common_rc.sh || :
+[ -f ~/.common_rc.sh ] && . ~/.common_rc.sh || :
 
 # Set color of ls (change $LS_COLORS)
 eval "$(dircolors -b)"
@@ -107,5 +107,5 @@ bindkey "^[OH" beginning-of-line
 bindkey "^[OF" end-of-line
 bindkey "^[[3~" delete-char
 
-[ -f ~/.fzf.zsh ] && source ~/.fzf.zsh || :
-[ -f ~/.local.zshrc ] && source ~/.local.zshrc || :
+[ -f ~/.fzf.zsh ] && . ~/.fzf.zsh || :
+[ -f ~/.local.zshrc ] && . ~/.local.zshrc || :
