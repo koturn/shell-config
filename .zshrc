@@ -15,21 +15,13 @@ setopt prompt_subst
 rprompt-git-current-branch() {
   local name action color
   [[ "${PWD}" =~ '/\.git/?' ]] && return || :
-  name=${"$(git symbolic-ref HEAD 2> /dev/null)"##*/} || return
+  name=${"$(git symbolic-ref HEAD 2> /dev/null || git tag --points-at HEAD 2> /dev/null | head -1)"##*/} || return
   action=$(VCS_INFO_git_getaction "$(git rev-parse --git-dir 2> /dev/null)") && action="(${action})"
   case "$(git status 2> /dev/null | tail -1)" in
-    'nothing to'*)
-      color=%F{green}
-      ;;
-    'nothing added'*)
-      color=%F{yellow}
-      ;;
-    '# Untracked'*)
-      color=%B%F{red}
-      ;;
-    *)
-      color=%F{red}
-      ;;
+    'nothing to'*) color=%F{green} ;;
+    'nothing added'*) color=%F{yellow} ;;
+    '# Untracked'*) color=%B%F{red} ;;
+    *) color=%F{red} ;;
   esac
   echo "${color}${name}${action}%f%b "
 }
