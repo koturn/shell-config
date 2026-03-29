@@ -10,6 +10,20 @@ alias cp='cp -i'
 alias mv='mv -i'
 alias tree='tree --charset unicode'
 [ -f /usr/local/bin/vim ] && alias vim=/usr/local/bin/vim || :
+[ -f /usr/local/bin/nvim ] && alias nvim=/usr/local/bin/nvim || :
+
+
+if [ -f '/proc/sys/fs/binfmt_misc/WSLInterop' ]; then
+  alias explorer='/mnt/c/Windows/explorer.exe'
+  cd() {
+    if [[ -d "$1" ]]; then
+      builtin cd "$1"
+    else
+      local win_path=$(wslpath -u "$1" 2> /dev/null)
+      [[ -d "${win_path}" ]] && builtin cd "${win_path}" || builtin cd "$1"
+    fi
+  }
+fi
 
 
 mkcd() {
