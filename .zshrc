@@ -12,23 +12,30 @@ colors
 
 autoload -Uz VCS_INFO_get_data_git; VCS_INFO_get_data_git 2> /dev/null
 setopt prompt_subst
-rprompt-git-current-branch() {
-  local name action color
-  [[ "${PWD}" =~ '/\.git/?' ]] && return || :
-  name=${"$(git symbolic-ref HEAD 2> /dev/null || git tag --points-at HEAD 2> /dev/null | head -1)"##*/} || return
-  action=$(VCS_INFO_git_getaction "$(git rev-parse --git-dir 2> /dev/null)") && action="(${action})"
-  case "$(git status 2> /dev/null | tail -1)" in
-    'nothing to'*) color=%F{green} ;;
-    'nothing added'*) color=%F{yellow} ;;
-    '# Untracked'*) color=%B%F{red} ;;
-    *) color=%F{red} ;;
-  esac
-  echo "${color}${name}${action}%f%b "
+which git-ps1 > /dev/null 2> /dev/null && : || {
+  git-ps1() {
+    local name action color
+    [[ "${PWD}" =~ '/\.git/?' ]] && return || :
+    name=${$(git branch --show-current 2> /dev/null):-$(git tag --points-at HEAD 2> /dev/null | head -1)}
+    [[ -z "${name}" ]] && return || :
+    case "$(git-status-cached 2> /dev/null)" in
+      '*+'*) color=%F{magenta} ;;
+      '*'*) color=%F{red} ;;
+      '+'*) color=%B%F{blue} ;;
+      '%'*) color=%B%F{yellow} ;;
+      *) color=%F{green} ;;
+    esac
+    echo -n " ${color}${name}${action}%f%b"
+  }
 }
 
-PROMPT="%(?.%B%F{magenta}(*'-'.%B%F{red}(;_;))%(?..<[\$?]) %(!.#.$) %f%b"
+if [[ -z "${SSH_CLIENT}" ]]; then
+  PROMPT="%(?.%B%F{magenta}(*'-'.%B%F{red}(;_;))%(?..<[\$?]) %(!.#.$) %f%b"
+else
+  PROMPT="%n@%m %(?.%B%F{magenta}(*'-'.%B%F{red}(;_;))%(?..<[\$?]) %(!.#.$) %f%b"
+fi
 PROMPT2="%B%F{magenta}%_> %f%b"
-RPROMPT='%B%F{yellow}[%f%b%D{%K:%M:%S} $(rprompt-git-current-branch)%B%F{yellow}%~]%f%b'
+RPROMPT='%B%F{yellow}[%f%b%D{%K:%M:%S}$(git-ps1 --zsh) %B%F{yellow}%~]%f%b'
 SPROMPT="%B%F{red} correct: %R -> %r [n,y,a,e]? %f%b"
 
 # Terminal title
@@ -79,7 +86,7 @@ setopt list_types        # 補完候補表示時にファイルの種類を表�
 chpwd() {
   ls --color=auto
   git rev-parse 2> /dev/null && {
-    RPROMPT='%B%F{yellow}[%f%b%D{%K:%M:%S} $(rprompt-git-current-branch)%B%F{yellow}%~]%f%b'
+    RPROMPT='%B%F{yellow}[%f%b%D{%K:%M:%S}$(git-ps1 --zsh) %B%F{yellow}%~]%f%b'
   } || {
     RPROMPT='%B%F{yellow}[%f%b%D{%K:%M:%S} %B%F{yellow}%~]%f%b'
   }

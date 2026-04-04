@@ -1,0 +1,3 @@
+-std=gnu11
+-I/usr/include/git2/
+-DUSE_LIBGIT2
