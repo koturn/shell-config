@@ -1,15 +1,19 @@
 /*!
  * @brief A utility that caches Git status in shared memory and retrieves it.
  *
- * @author  koturn
- * @file  main.c
+ * @author koturn
+ * @file main.c
  */
 #ifndef _DEFAULT_SOURCE
 #    define _DEFAULT_SOURCE
 #endif  // !defined(_DEFAULT_SOURCE)
 
+#include "ipc.h"
 #include "gitop.h"
 #include "logging.h"
+#ifdef USE_POSIX_IPC
+#    include "sha256.h"
+#endif  // USE_POSIX_IPC
 
 #include <ctype.h>
 #include <errno.h>
@@ -20,11 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <sys/ipc.h>
-#include <sys/sem.h>
-#include <sys/shm.h>
 #include <sys/stat.h>
-#include <sys/types.h>
 #include <sys/wait.h>
 
 #include <getopt.h>
@@ -83,19 +83,6 @@ typedef struct {
 } CmdParam;
 
 
-/*!
- * @brief Union for `semctl()`.
- */
-typedef union {
-    //! Value for `SETVAL`.
-    int val;
-    //! Buffer for `IPC_STAT` or `IPC_SET`.
-    struct semid_ds *buf;
-    //! Array for `GETALL` or `SETALL`.
-    unsigned short  *array;
-} SemData;
-
-
 static void parseArguments(CmdParam *pParam, int argc, char *argv[]);
 static void showUsage(FILE *stream, const char *progName);
 static void showVersion(FILE *stream);
@@ -104,10 +91,6 @@ static int tryParseInt(const char *numstr, int *pOutVal);
 __attribute__((pure))
 #endif  // defined(__GNUC__)
 static const char *skipSpace(const char *str);
-static int getOrCreateSemaphre(key_t key);
-static int freeSemaphore(key_t key);
-static int getOrCreateSharedMemory(key_t key, size_t shmSize);
-static int freeSharedMemory(key_t key);
 static int onLockAquired(int waitTime, PromptType promptType);
 static int onLockNotAquired(PromptType promptType);
 static int readSharedMemory(int shmId, char *data, size_t bufSize);
@@ -128,14 +111,12 @@ static const size_t kNameBufSize = 1024;
 static const int kDefaultWaitTime = 200;
 //! Polling cycle in milliseconds.
 static const int kPollCycle = 1;
-//! Shared memory ID.
-static const int kFtokId = 'G';
 //! Shared memory size.
 static const int kShmSize = 32;
 //! Target process ID.
 static pid_t g_targetPid;
 //! Semaphore ID.
-static int g_semId;
+static SemKey g_semKey;
 //! Shared memory ID.
 static int g_shmId;
 //! A flag should decrement semaphore counter or not.
@@ -188,23 +169,23 @@ int main(int argc, char *argv[])
         return ret;
     }
 
-    key_t key = ftok(gitConfigPath, kFtokId);
-    if (key == -1) {
-        printLastError("ftok() failed");
-        return errno;
+    IpcKey ipcKey;
+    ret = createIpcKey(gitConfigPath, &ipcKey);
+    if (ret != 0) {
+        return ret;
     }
 
     if (param.doReflesh) {
-        ret = freeSharedMemory(key);
-        int ret2 = freeSemaphore(key);
+        ret = deleteSharedMemory(&ipcKey);
+        int ret2 = deleteSemaphore(&ipcKey);
         return ret == 0 ? ret : ret2;
     }
 
-    g_semId = getOrCreateSemaphre(key);
-    if (g_semId == -1) {
+    ret = getOrCreateSemaphre(&ipcKey, &g_semKey);
+    if (ret != 0) {
         return errno;
     }
-    g_shmId = getOrCreateSharedMemory(key, kShmSize);
+    g_shmId = getOrCreateSharedMemory(&ipcKey, kShmSize);
     if (g_shmId == -1) {
         return errno;
     }
@@ -217,8 +198,7 @@ int main(int argc, char *argv[])
     signal(SIGHUP, sigHandler);
     signal(SIGABRT, sigHandler);
 
-    struct sembuf op = { .sem_num = 0, .sem_op = -1, .sem_flg = IPC_NOWAIT };
-    if (semop(g_semId, &op, 1) == 0) {
+    if (tryWaitSemaphre(&g_semKey)) {
         g_shouldSemPost = true;
 
         onLockAquired(param.waitTime, param.promptType);
@@ -414,94 +394,6 @@ static const char *skipSpace(const char *str)
 
 
 /*!
- * @brief Create/Initialize or Get exist semaphore ID.
- * @param [in] key  Semaphore key.
- * @return Semephore ID (-1 means error).
- */
-static int getOrCreateSemaphre(key_t key)
-{
-    int semId = semget(key, 1, 0666 | IPC_CREAT | IPC_EXCL);
-    if (semId == -1) {
-        semId = semget(key, 1, 0666 | IPC_CREAT);
-        if (semId == -1) {
-            printLastError("semget() failed");
-            return -1;
-        }
-    } else {
-        SemData ctlarg = { .val = 1 };
-        if (semctl(semId, 0, SETVAL, ctlarg) == -1) {
-            printLastError("semctl() failed");
-            return -1;
-        }
-    }
-
-    return semId;
-}
-
-
-/*!
- * @brief Free semaphore.
- * @param [in] key  Semaphore key.
- * @return Zero if success, otherwise non-zero.
- */
-static int freeSemaphore(key_t key)
-{
-    int semId = semget(key, 1, 0);
-    if (semId == -1) {
-        printLastError("shmget() failed");
-        return errno;
-    }
-
-    if (semctl(semId, 1, IPC_RMID, NULL) != 0) {
-        printLastError("semctl() failed");
-        return errno;
-    }
-
-    return 0;
-}
-
-
-/*!
- * @brief Create or Get exist shared mmeory ID.
- * @param [in] key  Shared memory key.
- * @param [in] shmSize  Size of shared memory.
- * @return Shared memory ID (-1 means error).
- */
-static int getOrCreateSharedMemory(key_t key, size_t shmSize)
-{
-    int shmId = shmget(key, shmSize, 0666 | IPC_CREAT);
-    if (shmId == -1) {
-        printLastError("shmget() failed");
-        return -1;
-    }
-
-    return shmId;
-}
-
-
-/*!
- * @brief Free shared memory.
- * @param [in] key  Shared memory key.
- * @return Zero if success, otherwise non-zero.
- */
-static int freeSharedMemory(key_t key)
-{
-    int shmId = shmget(key, 0, 0);
-    if (shmId == -1) {
-        printLastError("shmget() failed");
-        return errno;
-    }
-
-    if (shmctl(shmId, IPC_RMID, NULL) != 0) {
-        printLastError("shmctl() failed");
-        return errno;
-    }
-
-    return 0;
-}
-
-
-/*!
  * @brief An action when lock aquired.
  * @param [in] waitTime  Wait time in milliseconds.
  * @param [in] promptType  Prompt type.
@@ -593,16 +485,14 @@ static int writeSharedMemory(int shmId, const unsigned char *data, size_t dataLe
         return 0;
     }
 
-    char *pShm = (char *)shmat(shmId, 0, 0);
+    char *pShm = (char *)attachSharedMemory(shmId, kShmSize);
     if (pShm == NULL) {
-        printLastError("shmat() failed");
         return errno;
     }
 
     memcpy(pShm, data, dataLen);
 
-    if (shmdt(pShm) != 0) {
-        printLastError("shmdt() failed");
+    if (dettachSharedMemory(pShm, kShmSize) != 0) {
         return errno;
     }
 
@@ -619,16 +509,14 @@ static int writeSharedMemory(int shmId, const unsigned char *data, size_t dataLe
  */
 static int readSharedMemory(int shmId, char *data, size_t bufSize)
 {
-    char *pShm = (char *)shmat(shmId, 0, 0);
+    char *pShm = (char *)attachSharedMemory(shmId, kShmSize);
     if (pShm == NULL) {
-        printLastError("shmat() failed");
         return errno;
     }
 
     memcpy(data, pShm, bufSize);
 
-    if (shmdt(pShm) != 0) {
-        printLastError("shmdt() failed");
+    if (dettachSharedMemory(pShm, kShmSize) != 0) {
         return errno;
     }
 
@@ -873,13 +761,8 @@ static void releaseResource(bool shouldSemPost)
         return;
     }
 
-    if (g_semId != 0) {
-        if (shouldSemPost) {
-            struct sembuf op = { .sem_num = 0, .sem_op = 1, .sem_flg = 0 };
-            if (semop(g_semId, &op, 1) == -1) {
-                printLastError("sem_post() failed");
-            }
-        }
+    if (shouldSemPost) {
+        postSemaphore(&g_semKey);
     }
 }
 

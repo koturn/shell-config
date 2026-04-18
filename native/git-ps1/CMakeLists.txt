@@ -38,20 +38,57 @@ if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
 endif()
 
 
-file(GLOB SRCS *.c *.h)
+option(ENABLE_TESTING "Enable testing with Google Test." OFF)
+option(ENABLE_DOXYGEN "Enable to generate document with Doxygen." OFF)
+option(USE_POSIX_IPC "Use POSIX shared memory and semaphore." OFF)
+option(USE_ITALIC "Show short commit hash with italic." OFF)
+option(USE_LIBGIT2 "Use libgit2." ON)
+
+
+list(APPEND SRCS
+  "main.c"
+  "gitop.c"
+  "gitop.h"
+  "ipc.c"
+  "ipc.h"
+  "logging.c"
+  "logging.h")
+if(USE_POSIX_IPC)
+  list(APPEND SRCS "sha256.c" "sha256.h")
+endif()
+
 add_executable(
   ${BUILD_TARGET}
   ${SRCS})
 
-
 list(APPEND DEFINES "_DEFAULT_SOURCE")
 
-option(USE_ITALIC "Show short commit hash with italic." OFF)
-if(USE_ITALIC)
-  list(APPEND DEFINES "USE_ITALIC")
+if(ENABLE_TESTING)
+  enable_testing()
+  include(cmake/gtest.cmake)
+  add_subdirectory(test)
 endif()
 
-option(USE_LIBGIT2 "Use libgit2." ON)
+if(ENABLE_DOXYGEN)
+  include(cmake/doxygen.cmake)
+  add_doxygen(${BUILD_TARGET})
+endif()
+
+
+if(USE_POSIX_IPC)
+  list(APPEND DEFINES "USE_POSIX_IPC=1")
+
+  find_package(OpenSSL MODULE)
+  if(LIBGIT2_FOUND)
+    target_include_directories(${BUILD_TARGET} PRIVATE ${OPENSSL_INCLUDE_DIR})
+    target_link_libraries(${BUILD_TARGET} PRIVATE OpenSSL::Crypto)
+  endif()
+endif()
+
+if(USE_ITALIC)
+  list(APPEND DEFINES "USE_ITALIC=1")
+endif()
+
 if(USE_LIBGIT2)
   find_package(LibGit2 MODULE)
   if(LIBGIT2_FOUND)
@@ -309,20 +346,6 @@ else()
     string(REPLACE ";" " " ${TARGET_FLAG} "${${TARGET_FLAG}}")
     string(REGEX REPLACE "  +" " " "CMAKE_${TARGET_FLAG}" "${${TARGET_FLAG}}")
   endforeach(TARGET_FLAG)
-endif()
-
-
-option(ENABLE_TESTING "Enable testing with Google Test." OFF)
-if(ENABLE_TESTING)
-  enable_testing()
-  include(cmake/gtest.cmake)
-  add_subdirectory(test)
-endif()
-
-option(ENABLE_DOXYGEN "Enable to generate document with Doxygen." OFF)
-if(ENABLE_DOXYGEN)
-  include(cmake/doxygen.cmake)
-  add_doxygen(${BUILD_TARGET})
 endif()
 
 
