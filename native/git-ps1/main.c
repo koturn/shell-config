@@ -30,6 +30,10 @@
 #include <getopt.h>
 #include <unistd.h>
 
+#ifdef USE_MULTI_THREAD
+#    include <pthread.h>
+#endif  // defined(USE_MULTI_THREAD)
+
 #define AUTHOR "koturn"
 #define VERSION "0.1.0"
 #define MIN(x, y)  ((x) < (y) ? (x) : (y))
@@ -103,6 +107,11 @@ static void sigHandler(int signum);
 static void releaseResource(bool shouldSemPost);
 static NameType getDisplayName(char *buf, size_t bufSize);
 static int getGitStatString(char *buf, size_t bufSize);
+#ifdef USE_MULTI_THREAD
+static void *thProcGitCheckChanged(void *args);
+static void *thProcGitCheckStaged(void *args);
+static void *thProcGitCheckUntracked(void *args);
+#endif  // defined(USE_MULTI_THREAD)
 
 
 //! Name buffer size.
@@ -809,6 +818,58 @@ static int getGitStatString(char *buf, size_t bufSize)
         return 1;
     }
 
+#ifdef USE_MULTI_THREAD
+    int ret;
+
+    pthread_t th1;
+    bool isChanged;
+    ret = pthread_create(&th1, NULL, thProcGitCheckChanged, &isChanged);
+    if (ret != 0) {
+        printLastError("pthread_create() failed");
+        return errno;
+    }
+
+    pthread_t th2;
+    bool isStaged;
+    ret = pthread_create(&th2, NULL, thProcGitCheckStaged, &isStaged);
+    if (ret != 0) {
+        printLastError("pthread_create() failed");
+        pthread_join(th1, NULL);
+        return errno;
+    }
+
+    pthread_t th3;
+    bool isUntracked;
+    ret = pthread_create(&th3, NULL, thProcGitCheckUntracked, &isUntracked);
+    if (ret != 0) {
+        printLastError("pthread_create() failed");
+        pthread_join(th2, NULL);
+        pthread_join(th1, NULL);
+        return errno;
+    }
+
+    pthread_join(th3, NULL);
+    pthread_join(th2, NULL);
+    pthread_join(th1, NULL);
+
+    int i = 0;
+    if (isChanged) {
+        buf[i] = '*';
+        i++;
+    }
+
+    if (isStaged) {
+        buf[i] = '+';
+        i++;
+    }
+
+    if (isUntracked) {
+        buf[i] = '%';
+        i++;
+    }
+
+    buf[i] = '\0';
+#else
     int i = 0;
     bool isChanged = false;
     if (gitCheckChanged(&isChanged) == 0 && isChanged) {
@@ -827,6 +888,48 @@ static int getGitStatString(char *buf, size_t bufSize)
     }
 
     buf[i] = '\0';
+#endif  // defined(USE_MULTI_THREAD)
 
     return 0;
 }
+
+
+#ifdef USE_MULTI_THREAD
+/*!
+ * @brief Thread process to call `gitCheckChanged()`.
+ * @param [out] args  Output address for check result.
+ * @return NULL.
+ */
+static void *thProcGitCheckChanged(void *args)
+{
+    bool isChanged;
+    *(bool *)args = gitCheckChanged(&isChanged) == 0 && isChanged;
+    return NULL;
+}
+
+
+/*!
+ * @brief Thread process to call `gitCheckStaged()`.
+ * @param [out] args  Output address for check result.
+ * @return NULL.
+ */
+static void *thProcGitCheckStaged(void *args)
+{
+    bool isStaged;
+    *(bool *)args = gitCheckStaged(&isStaged) == 0 && isStaged;
+    return NULL;
+}
+
+
+/*!
+ * @brief Thread process to call `gitCheckUntracked()`.
+ * @param [out] args  Output address for check result.
+ * @return NULL.
+ */
+static void *thProcGitCheckUntracked(void *args)
+{
+    bool isUntracked;
+    *(bool *)args = gitCheckUntracked(&isUntracked) == 0 && isUntracked;
+    return NULL;
+}
+#endif  // defined(USE_MULTI_THREAD)

@@ -43,6 +43,7 @@ option(ENABLE_DOXYGEN "Enable to generate document with Doxygen." OFF)
 option(USE_POSIX_IPC "Use POSIX shared memory and semaphore." OFF)
 option(USE_ITALIC "Show short commit hash with italic." OFF)
 option(USE_LIBGIT2 "Use libgit2." ON)
+option(USE_MULTI_THREAD "Use multi thread." OFF)
 
 
 list(APPEND SRCS
@@ -92,11 +93,18 @@ endif()
 if(USE_LIBGIT2)
   find_package(LibGit2 MODULE)
   if(LIBGIT2_FOUND)
-    list(APPEND DEFINES "USE_LIBGIT2")
+    list(APPEND DEFINES "USE_LIBGIT2=1")
     target_include_directories(${BUILD_TARGET} PRIVATE ${LIBGIT2_INCLUDE_DIR})
     target_link_libraries(${BUILD_TARGET} PRIVATE LibGit2::LibGit2)
   endif()
 endif()
+
+if(USE_MULTI_THREAD)
+  list(APPEND DEFINES "USE_MULTI_THREAD=1")
+  find_package(Threads MODULE)
+  target_link_libraries(${BUILD_TARGET} PRIVATE Threads::Threads)
+endif()
+
 
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "i686.*|i386.*|x86.*")
   set(SYSTEM_PROCESSOR_IS_X86 TRUE)
