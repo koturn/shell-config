@@ -44,6 +44,7 @@ option(USE_POSIX_IPC "Use POSIX shared memory and semaphore." OFF)
 option(USE_ITALIC "Show short commit hash with italic." OFF)
 option(USE_LIBGIT2 "Use libgit2." ON)
 option(USE_MULTI_THREAD "Use multi thread." OFF)
+option(DEBUG_PERFORMANCE_CHECK "Add performance check code for debugging." OFF)
 
 
 list(APPEND SRCS
@@ -103,6 +104,10 @@ if(USE_MULTI_THREAD)
   list(APPEND DEFINES "USE_MULTI_THREAD=1")
   find_package(Threads MODULE)
   target_link_libraries(${BUILD_TARGET} PRIVATE Threads::Threads)
+endif()
+
+if(DEBUG_PERFORMANCE_CHECK)
+  list(APPEND DEFINES "DEBUG_PERFORMANCE_CHECK=1")
 endif()
 
 

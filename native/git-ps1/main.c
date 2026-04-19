@@ -872,20 +872,49 @@ static int getGitStatString(char *buf, size_t bufSize)
 #else
     int i = 0;
     bool isChanged = false;
+
+#    ifdef DEBUG_PERFORMANCE_CHECK
+    struct timespec start, end;
+    long long elapsed;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+#    endif  // defined(DEBUG_PERFORMANCE_CHECK)
+
     if (gitCheckChanged(&isChanged) == 0 && isChanged) {
         buf[i] = '*';
         i++;
     }
+
+#    ifdef DEBUG_PERFORMANCE_CHECK
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    elapsed = (end.tv_sec - start.tv_sec) * 1000LL + (end.tv_nsec - start.tv_nsec) / 1000000LL;
+    fprintf(stderr, "gitCheckChanged(): %lld ms\n", elapsed);
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+#    endif  // defined(DEBUG_PERFORMANCE_CHECK)
 
     if (gitCheckStaged(&isChanged) == 0 && isChanged) {
         buf[i] = '+';
         i++;
     }
 
+#    ifdef DEBUG_PERFORMANCE_CHECK
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    elapsed = (end.tv_sec - start.tv_sec) * 1000LL + (end.tv_nsec - start.tv_nsec) / 1000000LL;
+    fprintf(stderr, "gitCheckChanged(): %lld ms\n", elapsed);
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+#    endif  // defined(DEBUG_PERFORMANCE_CHECK)
+
     if (gitCheckUntracked(&isChanged) == 0 && isChanged) {
         buf[i] = '%';
         i++;
     }
+
+#    ifdef DEBUG_PERFORMANCE_CHECK
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    elapsed = (end.tv_sec - start.tv_sec) * 1000LL + (end.tv_nsec - start.tv_nsec) / 1000000LL;
+    fprintf(stderr, "gitCheckChanged(): %lld ms\n", elapsed);
+#    endif  // defined(DEBUG_PERFORMANCE_CHECK)
 
     buf[i] = '\0';
 #endif  // defined(USE_MULTI_THREAD)
@@ -903,7 +932,20 @@ static int getGitStatString(char *buf, size_t bufSize)
 static void *thProcGitCheckChanged(void *args)
 {
     bool isChanged;
+
+#    ifdef DEBUG_PERFORMANCE_CHECK
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+#    endif  // defined(DEBUG_PERFORMANCE_CHECK)
+
     *(bool *)args = gitCheckChanged(&isChanged) == 0 && isChanged;
+
+#    ifdef DEBUG_PERFORMANCE_CHECK
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    long long elapsed = (end.tv_sec - start.tv_sec) * 1000LL + (end.tv_nsec - start.tv_nsec) / 1000000LL;
+    fprintf(stderr, "gitCheckChanged(): %lld ms\n", elapsed);
+#    endif  // defined(DEBUG_PERFORMANCE_CHECK)
+
     return NULL;
 }
 
@@ -916,7 +958,20 @@ static void *thProcGitCheckChanged(void *args)
 static void *thProcGitCheckStaged(void *args)
 {
     bool isStaged;
+
+#    ifdef DEBUG_PERFORMANCE_CHECK
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+#    endif  // defined(DEBUG_PERFORMANCE_CHECK)
+
     *(bool *)args = gitCheckStaged(&isStaged) == 0 && isStaged;
+
+#    ifdef DEBUG_PERFORMANCE_CHECK
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    long long elapsed = (end.tv_sec - start.tv_sec) * 1000LL + (end.tv_nsec - start.tv_nsec) / 1000000LL;
+    fprintf(stderr, "gitCheckStaged(): %lld ms\n", elapsed);
+#    endif  // defined(DEBUG_PERFORMANCE_CHECK)
+
     return NULL;
 }
 
@@ -929,7 +984,20 @@ static void *thProcGitCheckStaged(void *args)
 static void *thProcGitCheckUntracked(void *args)
 {
     bool isUntracked;
+
+#    ifdef DEBUG_PERFORMANCE_CHECK
+    struct timespec start, end;
+    clock_gettime(CLOCK_MONOTONIC, &start);
+#    endif  // defined(DEBUG_PERFORMANCE_CHECK)
+
     *(bool *)args = gitCheckUntracked(&isUntracked) == 0 && isUntracked;
+
+#    ifdef DEBUG_PERFORMANCE_CHECK
+    clock_gettime(CLOCK_MONOTONIC, &end);
+    long long elapsed = (end.tv_sec - start.tv_sec) * 1000LL + (end.tv_nsec - start.tv_nsec) / 1000000LL;
+    fprintf(stderr, "gitCheckUntracked(): %lld ms\n", elapsed);
+#    endif  // defined(DEBUG_PERFORMANCE_CHECK)
+
     return NULL;
 }
 #endif  // defined(USE_MULTI_THREAD)
